@@ -143,3 +143,4 @@ Plot rewards (or scores) of multiple runs on the same plot. Note that custom lab
 python compare_results.py -j ../output/runA ../output/runB -l 'mycustomlabel runA' -l 'mycustomlabel runB' --plot_rew
 python compare_results.py -j ../output/runA ../output/runB -l 'mycustomlabel runA' -l 'mycustomlabel runB'
 ```
+# EEI_Analysis_model_based_rl
