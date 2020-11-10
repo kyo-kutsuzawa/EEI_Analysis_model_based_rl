@@ -1,4 +1,4 @@
-
+# EEI_Analysis_model_based_rl
 Code is based on https://github.com/google-research/pddm, https://github.com/flowersteam/rl-difference-testing and https://github.com/deepmind/dm_control
 
 **Contents of this README:**
@@ -135,4 +135,4 @@ Plot rewards (or scores) of multiple runs on the same plot. Note that custom lab
 python compare_results.py -j ../output/runA ../output/runB -l 'mycustomlabel runA' -l 'mycustomlabel runB' --plot_rew
 python compare_results.py -j ../output/runA ../output/runB -l 'mycustomlabel runA' -l 'mycustomlabel runB'
 ```
-# EEI_Analysis_model_based_rl
+
