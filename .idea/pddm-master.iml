@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="PYTHON_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pddm/plotting" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pddm/statstics_anlysis" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pddm/calcsynergy" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pddm/classic_pollicy" isTestSource="false" />
+    </content>
+    <orderEntry type="jdk" jdkName="Python 3.5 (pddm-gpu-env)" jdkType="Python SDK" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+  <component name="PyDocumentationSettings">
+    <option name="format" value="PLAIN" />
+    <option name="myDocStringFormat" value="Plain" />
+  </component>
+</module>
