@@ -7,7 +7,7 @@ import argparse
 import myenv
 
 
-frame_skip = 5
+frame_skip = 10
 
 
 class MpcPolicy:
@@ -44,7 +44,7 @@ def train():
     batchsize      = 512
     n_train        =  50
     n_val          =  50
-    rollout_length = 100
+    rollout_length = 500
 
     # training args
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -58,40 +58,40 @@ def train():
     # Create environment
     env = myenv.InvertedPendulumEnv(frame_skip=5)
 
+    # Create an NN model
     model = make_model(env.observation_space.shape[0])
     loss_object = tf.keras.losses.MeanSquaredError()
     optimizer = tf.keras.optimizers.Adam()
 
-    dataset = collect_data(env, n_train, rollout_length)
-    observations = dataset[0]
-    std = np.std(observations[0:10], axis=0)  # only the first 10 steps are used for calculating std
-    std = std.reshape((1, -1))
-    print(std)
+    # Setup a scaling factor
+    scale = 1.0
+    print("scale factor is {}.".format(scale))
 
+    train_loss = []
     for epoch in range(n_epochs):
-        # Collect training/validation dataset
+        # Collect training dataset
         train_dataset = collect_data(env, n_train, rollout_length)
         train_dataset = tf.data.Dataset.from_tensor_slices(train_dataset).shuffle(n_train * rollout_length).batch(batchsize)
 
-        train_loss = tf.keras.metrics.Mean(name='train_loss')
+        # Training
         loss_total = 0.0
-
         for s, a, s_next in train_dataset:
             with tf.GradientTape() as tape:
                 x = tf.concat((s, a), axis=1)
                 s_predict = model(x)
-                loss = loss_object(s_next / std, s_predict / std)
+                loss = loss_object(s_next*scale, s_predict*scale)
 
+            # Update the model
             gradients = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-
-            train_loss(loss)
             loss_total += float(loss)
 
-        loss_mean = loss_total / (n_train * rollout_length)
-        print("epoch {:4d}: loss = {:.5e}".format(epoch, loss_mean))
+        # Print training loss
+        train_loss.append(loss_total / (n_train * rollout_length))
+        print("epoch {:4d}: train loss = {:.5e}".format(epoch, train_loss[-1]))
 
-    model.save('result/param.h5')
+    model.save("result/param.h5")
+    np.savetxt("result/loss.csv", np.array(train_loss))
 
 
 def make_model(out_dim):
