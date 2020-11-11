@@ -1,17 +1,3 @@
-# Copyright 2019 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
@@ -108,78 +94,6 @@ def train():
     model.save('result/param.h5')
 
 
-def evaluate():
-    n_trials = 2000
-    horizon = 20
-
-    env = myenv.InvertedPendulumEnv(frame_skip=1)
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-
-    model = make_model(obs_dim)
-    x = np.zeros((n_trials, obs_dim+act_dim))
-    model(x)
-    model.load_weights("result/param.h5")
-
-    policy = MpcPolicy(model, n_trials, horizon)
-    obs = env.reset()
-    while True:
-        action = policy(obs)
-
-        for i in range(frame_skip):
-            env.render()
-            obs, _, _, _ = env.step(action)
-
-
-def evaluate_prediction():
-    import matplotlib.pyplot as plt
-
-    env = myenv.InvertedPendulumEnv(frame_skip=frame_skip)
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.shape[0]
-
-    model = make_model(obs_dim)
-    x = np.zeros((1, obs_dim+act_dim))
-    model(x)
-    model.load_weights("result/param.h5")
-
-    N = 6
-    observations_true = []
-    observations_est  = []
-    for n in range(N):
-        observations_true.append([])
-        observations_est.append([])
-
-        obs = env.reset()
-        obs_est = obs
-        for _ in range(10):
-            action = env.action_space.sample()
-            obs_true, _, _, _ = env.step(action)
-
-            x = tf.concat((obs_est, action), axis=0)
-            x = tf.reshape(x, (1, -1))
-            obs_est = model(x).numpy().flatten()
-
-            observations_true[-1].append(obs_true)
-            observations_est[-1].append(obs_est.copy())
-
-    observations_true = np.array(observations_true)
-    observations_est  = np.array(observations_est)
-
-    fig = plt.figure()
-    n_row = np.ceil(np.sqrt(obs_dim))
-    n_col = np.ceil(obs_dim/n_row)
-    axes = [fig.add_subplot(n_row, n_col, i+1) for i in range(obs_dim)]
-
-    for i, ax in enumerate(axes):
-        for n in range(N):
-            ax.plot(np.arange(observations_true.shape[1]), observations_true[n, :, i], color="C{}".format(n), ls="--")
-            ax.plot(np.arange(observations_est.shape[1]),  observations_est[n, :, i],  color="C{}".format(n))
-
-    fig.tight_layout()
-    plt.show()
-
-
 def make_model(out_dim):
     model = tf.keras.Sequential([
         layers.Dense(250, activation='relu'),
@@ -219,5 +133,3 @@ def collect_data(env, n_rollout, rollout_length):
 if __name__ == '__main__':
     tf.contrib.eager.enable_eager_execution()
     train()
-    evaluate_prediction()
-    evaluate()
