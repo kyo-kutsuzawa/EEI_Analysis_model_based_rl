@@ -5,6 +5,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import argparse
 import myenv
+import tqdm
 
 
 frame_skip = 10
@@ -157,7 +158,9 @@ def train():
     train_loss = []
     for epoch in range(n_epochs):
         # Collect training dataset
-        train_dataset = collect_data(env, n_train, rollout_length)
+        train_dataset1 = collect_data(env, n_train, rollout_length)
+        train_dataset2 = collect_data_with_mpc(env, model, n_train, rollout_length)
+        train_dataset = tuple([np.array(d1 + d2, dtype=np.float64) for d1, d2 in zip(train_dataset1, train_dataset2)])
         train_dataset = tf.data.Dataset.from_tensor_slices(train_dataset).shuffle(n_train * rollout_length).batch(batchsize)
 
         # Training
@@ -196,7 +199,7 @@ def collect_data(env, n_rollout, rollout_length):
     actions = []
     observations_next = []
 
-    for _ in range(n_rollout):
+    for _ in tqdm.tqdm(range(n_rollout)):
         obs = env.reset()
 
         for _ in range(rollout_length):
@@ -210,9 +213,40 @@ def collect_data(env, n_rollout, rollout_length):
 
             obs = obs_next
 
-    observations      = np.array(observations, dtype=np.float64)
-    actions           = np.array(actions, dtype=np.float64)
-    observations_next = np.array(observations_next, dtype=np.float64)
+    #observations      = np.array(observations, dtype=np.float64)
+    #actions           = np.array(actions, dtype=np.float64)
+    #observations_next = np.array(observations_next, dtype=np.float64)
+
+    return observations, actions, observations_next
+
+
+def collect_data_with_mpc(env, model, n_rollout, rollout_length):
+    observations = []
+    actions = []
+    observations_next = []
+
+    n_trials = 200
+    horizon = 5
+    policy = PddmPolicy(model, n_trials, horizon)
+
+    for _ in tqdm.tqdm(range(n_rollout)):
+        obs = env.reset()
+        policy.reset()
+
+        for _ in range(rollout_length):
+            action = policy(obs)
+
+            obs_next, _, _, _ = env.step(action)
+
+            observations.append(obs)
+            actions.append(action)
+            observations_next.append(obs_next)
+
+            obs = obs_next
+
+    #observations      = np.array(observations, dtype=np.float64)
+    #actions           = np.array(actions, dtype=np.float64)
+    #observations_next = np.array(observations_next, dtype=np.float64)
 
     return observations, actions, observations_next
 
