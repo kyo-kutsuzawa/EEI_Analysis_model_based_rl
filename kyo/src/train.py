@@ -180,8 +180,8 @@ def train():
         train_loss.append(loss_total / (n_train * rollout_length))
         print("epoch {:4d}: train loss = {:.5e}".format(epoch, train_loss[-1]))
 
-    model.save("result/param.h5")
-    np.savetxt("result/loss.csv", np.array(train_loss))
+        model.save("result/param.h5")
+        np.savetxt("result/loss.csv", np.array(train_loss))
 
 
 def make_model(out_dim):
