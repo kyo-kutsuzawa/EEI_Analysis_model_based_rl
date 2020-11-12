@@ -64,8 +64,8 @@ class InvertedPendulumEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.viewer.cam.azimuth = 180
 
 
-if __name__ == "__main__":
-    env = InvertedPendulumEnv(frame_skip=5)
+def _example():
+    env = InvertedPendulumEnv()
     env.reset()
 
     while True:
@@ -77,3 +77,7 @@ if __name__ == "__main__":
         for o in obs:
             print("{:8.3f}".format(o), end="  ")
         print("", end="\r")
+
+
+if __name__ == "__main__":
+    _example()
