@@ -40,11 +40,11 @@ class MpcPolicy:
 
 
 def train():
-    n_epochs       = 100
+    n_epochs       =  40
     batchsize      = 512
-    n_train        =  50
-    n_val          =  50
-    rollout_length = 500
+    n_train        =  50  # Number of trajectories in each epoch
+    rollout_length = 500  # Trajectory length in each trial
+    lr = 0.001
 
     # training args
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -61,10 +61,13 @@ def train():
     # Create an NN model
     model = make_model(env.observation_space.shape[0])
     loss_object = tf.keras.losses.MeanSquaredError()
-    optimizer = tf.keras.optimizers.Adam()
+    optimizer = tf.keras.optimizers.Adam(lr=lr)
 
     # Setup a scaling factor
-    scale = 1.0
+    dataset = collect_data(env, n_train, rollout_length)
+    observations = dataset[0]
+    scale = 1.0 / np.std(observations, axis=0)
+    scale = scale.reshape((1, -1))
     print("scale factor is {}.".format(scale))
 
     train_loss = []
@@ -96,8 +99,8 @@ def train():
 
 def make_model(out_dim):
     model = tf.keras.Sequential([
-        layers.Dense(250, activation='relu'),
-        layers.Dense(250, activation='relu'),
+        layers.Dense(250, activation="relu"),
+        layers.Dense(250, activation="relu"),
         layers.Dense(out_dim)
     ])
 
