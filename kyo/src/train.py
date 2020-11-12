@@ -47,15 +47,17 @@ class PddmPolicy:
         self.n_trials = n_trials
         self.act_dim = 1
 
-        self.mu = [np.zeros((self.act_dim,)) for _ in range(self.horizon)]
         self.gamma = 1.0
         self.beta = 0.9
         self.sigma = 0.9
+
+        self.reset()
 
     def __call__(self, s):
         a = [np.zeros((self.n_trials, self.act_dim)) for _ in range(self.horizon)]
         s = np.tile(s, (self.n_trials, 1))
 
+        # Shift action mean
         self.mu[:-1] = self.mu[1:]
 
         # Sample action candidates
@@ -68,7 +70,7 @@ class PddmPolicy:
                 n = self.beta * eps + (1 - self.beta) * n
             a[i] = self.mu[i].reshape((1, -1)) + n
 
-        # Predict rewards for each action candidates
+        # Predict rewards for the set of action candidates
         r_total = np.zeros(self.n_trials)
         for i in range(self.horizon):
             x = tf.concat((s, a[i]), axis=1)
@@ -85,8 +87,40 @@ class PddmPolicy:
 
         return self.mu[0]
 
+    def __call__array(self, s):
+        actions = np.zeros((self.n_trials, self.horizon, self.act_dim))
+        states = np.zeros((self.n_trials, self.horizon+1, s.shape[0]))
+        states[:, 0, :] = np.tile(s, (self.n_trials, 1))
+
+        self.mu[:-1] = self.mu[1:]
+
+        # Sample action candidates
+        eps = np.random.normal(0, self.sigma, size=actions.shape)
+        for i in range(self.horizon):
+            if i == 0:
+                n = self.beta * eps[:, i, :]
+            else:
+                n = self.beta * eps[:, i, :] + (1 - self.beta) * n
+            actions[:, i, :] = self.mu[i, :].reshape((1, -1)) + n
+
+        # Predict rewards for each action candidates
+        r_total = np.zeros(self.n_trials)
+        for i in range(self.horizon):
+            x = tf.concat((states[:, i, :], actions[:, i, :]), axis=1)
+            states[:, i+1, :] = self.nn(x).numpy()
+
+        r_action = -0.1 * np.sum(actions**2, axis=(1, 2))
+        r_stable = 10 - 50 * np.sum(np.abs(states[:, :, 1]), axis=1)
+        r_total += r_stable + r_action
+
+        # Update self.mu using rewards
+        weight = np.exp(self.gamma * r_total).reshape((-1, 1, 1)) + 1e-10
+        self.mu = np.sum(actions * weight, axis=0) / np.sum(weight)
+
+        return self.mu[0, :]
+
     def reset(self):
-        self.mu = [np.zeros((self.act_dim,)) for _ in range(self.horizon)]
+        self.mu = np.zeros((self.horizon, self.act_dim))
 
 
 def train():
