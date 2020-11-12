@@ -39,6 +39,56 @@ class MpcPolicy:
         return a_best
 
 
+class PddmPolicy:
+    def __init__(self, nn, n_trials, horizon):
+        self.nn = nn
+
+        self.horizon = horizon
+        self.n_trials = n_trials
+        self.act_dim = 1
+
+        self.mu = [np.zeros((self.act_dim,)) for _ in range(self.horizon)]
+        self.gamma = 1.0
+        self.beta = 0.9
+        self.sigma = 0.9
+
+    def __call__(self, s):
+        a = [np.zeros((self.n_trials, self.act_dim)) for _ in range(self.horizon)]
+        s = np.tile(s, (self.n_trials, 1))
+
+        self.mu[:-1] = self.mu[1:]
+
+        # Sample action candidates
+        for i in range(self.horizon):
+            eps = np.random.normal(0, self.sigma, size=a[i].shape)
+
+            if i == 0:
+                n = self.beta * eps
+            else:
+                n = self.beta * eps + (1 - self.beta) * n
+            a[i] = self.mu[i].reshape((1, -1)) + n
+
+        # Predict rewards for each action candidates
+        r_total = np.zeros(self.n_trials)
+        for i in range(self.horizon):
+            x = tf.concat((s, a[i]), axis=1)
+            s = self.nn(x).numpy()
+
+            r_action = -0.1 * np.sum(a[i]**2, axis=1)
+            r_stable = 10 - 50 * np.abs(s[:, 1])
+            r_total += r_stable + r_action
+
+        # Update self.mu using rewards
+        weight = np.exp(self.gamma * r_total).reshape((-1, 1)) + 1e-10
+        for i in range(self.horizon):
+            self.mu[i] = np.sum(a[i] * weight, axis=0) / np.sum(weight)
+
+        return self.mu[0]
+
+    def reset(self):
+        self.mu = [np.zeros((self.act_dim,)) for _ in range(self.horizon)]
+
+
 def train():
     n_epochs       =  40
     batchsize      = 512
