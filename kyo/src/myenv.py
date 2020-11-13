@@ -63,6 +63,30 @@ class InvertedPendulumEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.viewer.cam.elevation = -10
         self.viewer.cam.azimuth = 180
 
+    def add_disturb(self, torque):
+        self.data.qfrc_applied[:] = np.asarray([0, torque])
+
+
+class PdPolicy:
+    def __init__(self):
+        self.Kp = 5.0
+        self.Kd = 0.5
+        self.dt = 0.01
+
+        self.e_last = 0.0
+
+    def __call__(self, s):
+        q = s[1].reshape((-1,))
+        e = -q
+        e_d = (e - self.e_last) / self.dt
+
+        a = self.Kp * e + self.Kd * e_d
+        self.e_last = e
+        return a
+
+    def reset(self):
+        self.e_last = 0.0
+
 
 def _example():
     env = InvertedPendulumEnv()
@@ -79,5 +103,22 @@ def _example():
         print("", end="\r")
 
 
+def _example_pd():
+    env = InvertedPendulumEnv(frame_skip=5)
+    policy = PdPolicy()
+    policy.dt = env.dt
+
+    obs = env.reset()
+    while True:
+        env.render()
+
+        action = policy(obs)
+        obs, _, _, _ = env.step(action)
+
+        for o in obs:
+            print("{:8.3f}".format(o), end="  ")
+        print("", end="\r")
+
+
 if __name__ == "__main__":
-    _example()
+    _example_pd()
