@@ -8,7 +8,7 @@ import myenv
 import tqdm
 
 
-frame_skip = 10
+frame_skip = 1
 
 
 class MpcPolicy:
@@ -66,15 +66,15 @@ class PddmPolicy:
         for i in range(self.horizon):
             eps = np.random.normal(0, self.sigma, size=a[i].shape)
 
-            if i == 0:
-                n = self.beta * eps
-            else:
-                n = self.beta * eps + (1 - self.beta) * n
-            a[i] = self.mu[i].reshape((1, -1)) + n
             #if i == 0:
-            #    a[i] = self.beta * (self.mu[i].reshape((1, -1)) + eps) + (1 - self.beta) * a_past
+            #    n = self.beta * eps
             #else:
-            #    a[i] = self.beta * (self.mu[i].reshape((1, -1)) + eps) + (1 - self.beta) * a[i-1]
+            #    n = self.beta * eps + (1 - self.beta) * n
+            #a[i] = self.mu[i].reshape((1, -1)) + n
+            if i == 0:
+                a[i] = self.beta * (self.mu[i].reshape((1, -1)) + eps) + (1 - self.beta) * a_past
+            else:
+                a[i] = self.beta * (self.mu[i].reshape((1, -1)) + eps) + (1 - self.beta) * a[i-1]
 
         # Predict rewards for the set of action candidates
         r_total = np.zeros(self.n_trials)
@@ -87,8 +87,8 @@ class PddmPolicy:
             r_total += r_stable + r_action
 
         # Update self.mu using rewards
-        weight = np.exp(self.gamma * r_total).reshape((-1, 1))
-        #weight = np.exp(self.gamma * (r_total - np.max(r_total))).reshape((-1, 1))
+        #weight = np.exp(self.gamma * r_total).reshape((-1, 1))
+        weight = np.exp(self.gamma * (r_total - np.max(r_total))).reshape((-1, 1))
         for i in range(self.horizon):
             self.mu[i] = np.sum(a[i] * weight, axis=0) / (np.sum(weight) + 1e-10)
 
@@ -209,7 +209,7 @@ def collect_data_with_mpc(env, model, n_rollout, rollout_length):
     observations_next = []
 
     n_trials = 200
-    horizon = 5
+    horizon = 20
     policy = PddmPolicy(model, n_trials, horizon)
 
     for _ in tqdm.tqdm(range(n_rollout)):
