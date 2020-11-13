@@ -145,7 +145,7 @@ def train():
 
         # Training
         loss_total = 0.0
-        for s, a, s_next in train_dataset:
+        for s, a, s_next in tqdm.tqdm(train_dataset):
             with tf.GradientTape() as tape:
                 x = tf.concat((s, a), axis=1)
                 s_predict = model(x)
