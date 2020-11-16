@@ -50,15 +50,18 @@ def evaluate_prediction():
         observations_true.append([])
         observations_est.append([])
 
-        obs = env.reset()
-        obs_est = obs
+        obs_true = env.reset()
+        obs_est = obs_true
+        observations_true[-1].append(obs_true)
+        observations_est[-1].append(obs_est.copy())
         for _ in range(horizon):
             action = env.action_space.sample()
-            obs_true, _, _, _ = env.step(action)
 
             x = tf.concat((obs_est, action), axis=0)
             x = tf.reshape(x, (1, -1))
             obs_est = model(x).numpy().flatten()
+
+            obs_true, _, _, _ = env.step(action)
 
             observations_true[-1].append(obs_true)
             observations_est[-1].append(obs_est.copy())
@@ -83,10 +86,10 @@ def evaluate_prediction():
 def evaluate_eei():
     import matplotlib.pyplot as plt
 
-    n_trials = 10
-    length = 30
-    i_disturb = 5
-    disturb_interval = 1
+    n_trials = 5
+    length = int(1000 / frame_skip)
+    i_disturb = int(100 / frame_skip)
+    disturb_interval = np.ceil(1 / frame_skip)
 
     env = myenv.InvertedPendulumEnv(frame_skip=1)
     obs_dim = env.observation_space.shape[0]
@@ -98,10 +101,13 @@ def evaluate_eei():
     model.load_weights("result/param.h5")
 
     def trial(policy):
+        """A set of trials
+        """
         eei_list = []
         c_pfm_list = []
         c_eng_list = []
         traj = []
+        reward_list = []
 
         for n in range(n_trials):
             print("trial #{}".format(n))
@@ -110,18 +116,20 @@ def evaluate_eei():
             traj.append([])
             c_pfm = 0
             c_eng = 0
+            reward = 0.0
             for i in range(length):
                 action = policy(obs)
 
                 if i == i_disturb:
                     #env.add_disturb(np.random.uniform(0.1, 0.3))
-                    env.add_disturb(0.2)
+                    env.add_disturb(3.0)
                 elif i == i_disturb + disturb_interval:
                     env.add_disturb(0.0)
 
                 for _ in range(frame_skip):
-                    obs, _, _, _ = env.step(action)
+                    obs, r, _, _ = env.step(action)
                     traj[-1].append(np.concatenate((action, obs)))
+                    reward += r
 
                     if i >= i_disturb:
                         c_pfm += np.sum(obs[1]**2) * env.dt
@@ -130,23 +138,29 @@ def evaluate_eei():
             c_pfm_list.append(c_pfm)
             c_eng_list.append(c_eng)
             eei_list.append(1 / (c_pfm * c_eng))
+            reward_list.append(reward)
         traj = np.array(traj)
 
-        return eei_list, traj, c_pfm_list, c_eng_list
+        return eei_list, traj, c_pfm_list, c_eng_list, reward_list
 
     print("evaluate mpc")
     n_samples = 2000
-    horizon = 10
+    horizon = 20
     policy = PddmPolicy(model, n_samples, horizon)
-    eei_mpc, traj_mpc, c_pfm_mpc, c_eng_mpc = trial(policy)
+    eei_mpc, traj_mpc, c_pfm_mpc, c_eng_mpc, reward_mpc = trial(policy)
 
     print("evaluate pd")
     policy = myenv.PdPolicy()
     policy.Kp = 7.0
-    policy.Kp = 2.0
+    policy.Kd = 2.0
+    policy.Kd = 0.5
     policy.dt = env.dt
-    eei_pd, traj_pd, c_pfm_pd, c_eng_pd = trial(policy)
+    eei_pd, traj_pd, c_pfm_pd, c_eng_pd, reward_pd = trial(policy)
 
+    print(reward_mpc)
+    print(reward_pd)
+
+    # Plot EEI, control deviation, and energy consumption
     import seaborn as sns
     plt.figure()
     plt.suptitle("EEI")
@@ -161,6 +175,7 @@ def evaluate_eei():
     ax = sns.boxplot(x=["MPC", "PD"], y=[c_eng_mpc, c_eng_pd])
     ax = sns.swarmplot(x=["MPC"]*len(c_eng_mpc)+["PD"]*len(c_eng_pd), y=c_eng_mpc+c_eng_pd, color='black')
 
+    # Plot trajectories
     fig = plt.figure(figsize=(16, 8))
     n_col = np.ceil(np.sqrt(obs_dim+act_dim))
     n_row = np.ceil((obs_dim+act_dim)/n_col)

@@ -49,8 +49,10 @@ class InvertedPendulumEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.num_step = 0
 
         # Reset joint state
-        qpos = self.init_qpos + self.np_random.uniform(low=-0.01, high=0.01, size=self.model.nq)
-        qvel = self.init_qvel + self.np_random.uniform(low=-0.01, high=0.01, size=self.model.nv)
+        #qpos = self.init_qpos + self.np_random.uniform(low=-0.01, high=0.01, size=self.model.nq)
+        #qvel = self.init_qvel + self.np_random.uniform(low=-0.01, high=0.01, size=self.model.nv)
+        qpos = self.init_qpos + self.np_random.uniform(low=[-np.pi, -0.1], high=[np.pi, 0.1], size=self.model.nq)
+        qvel = self.init_qvel + self.np_random.uniform(low=-0.1, high=0.1, size=self.model.nv)
         self.set_state(qpos, qvel)
 
         # first observation

@@ -8,7 +8,7 @@ import myenv
 import tqdm
 
 
-frame_skip = 1
+frame_skip = 10
 
 
 class MpcPolicy:
@@ -48,9 +48,9 @@ class PddmPolicy:
         self.n_trials = n_trials
         self.act_dim = 1
 
-        self.gamma = 1.0
-        self.beta = 0.9
-        self.sigma = 0.9
+        self.gamma = 10.0
+        self.beta = 0.6
+        self.sigma = 0.3
 
         self.reset()
 
@@ -99,11 +99,12 @@ class PddmPolicy:
 
 
 def train():
+    # Setup constant values
     n_epochs       =  40
     batchsize      = 512
-    n_train        =  50  # Number of trajectories in each epoch
-    rollout_length = 500  # Trajectory length in each trial
-    lr = 0.001
+    n_train        = int( 50 * frame_skip)  # Number of trajectories in each epoch
+    rollout_length = int(200 / frame_skip)  # Trajectory length in each trial
+    lr = 0.001  # Learning rate
 
     # training args
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -115,7 +116,7 @@ def train():
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Create environment
-    env = myenv.InvertedPendulumEnv(frame_skip=5)
+    env = myenv.InvertedPendulumEnv(frame_skip=frame_skip)
 
     # Create an NN model
     model = make_model(env.observation_space.shape[0])
@@ -123,8 +124,8 @@ def train():
     optimizer = tf.keras.optimizers.Adam(lr=lr)
 
     # Setup a scaling factor
-    dataset = collect_data(env, n_train, rollout_length)
-    observations = dataset[0]
+    _dataset = collect_data(env, n_train, rollout_length)
+    observations = _dataset[0]
     scale = 1.0 / np.std(observations, axis=0)
     scale = scale.reshape((1, -1))
     scale = 1.0
@@ -133,20 +134,19 @@ def train():
     dataset = ([], [], [])
     train_loss = []
     for epoch in range(n_epochs):
-        # Collect training dataset
-        #train_dataset1 = collect_data(env, n_train, rollout_length)
-        #train_dataset2 = collect_data_with_mpc(env, model, n_train, rollout_length)
-        #train_dataset = tuple([np.array(d1 + d2, dtype=np.float64) for d1, d2 in zip(train_dataset1, train_dataset2)])
+        # Add MPC results to the dataset
         dataset_additional = collect_data(env, n_train, rollout_length)
         dataset = tuple([d1 + d2 for d1, d2 in zip(dataset, dataset_additional)])
 
+        # Convert the dataset to tensorflow style
         train_dataset = tuple([np.array(d, dtype=np.float64) for d in dataset])
         train_dataset = tf.data.Dataset.from_tensor_slices(train_dataset).shuffle(n_train * rollout_length).batch(batchsize)
 
-        # Training
+        # Train the entire dataset
         loss_total = 0.0
         for s, a, s_next in tqdm.tqdm(train_dataset):
             with tf.GradientTape() as tape:
+                # Compute NN outputs
                 x = tf.concat((s, a), axis=1)
                 s_predict = model(x)
                 loss = loss_object(s_next*scale, s_predict*scale)
@@ -160,8 +160,9 @@ def train():
         train_loss.append(loss_total / len(dataset[0]))
         print("epoch {:4d}: train loss = {:.5e}".format(epoch, train_loss[-1]))
 
-        dataset_additional = collect_data_with_mpc(env, model, n_train, rollout_length)
-        dataset = tuple([d1 + d2 for d1, d2 in zip(dataset, dataset_additional)])
+        # Add MPC results to the dataset
+        #dataset_additional = collect_data_with_mpc(env, model, n_train, rollout_length)
+        #dataset = tuple([d1 + d2 for d1, d2 in zip(dataset, dataset_additional)])
 
         model.save("result/param.h5")
         np.savetxt("result/loss.csv", np.array(train_loss))
