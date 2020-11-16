@@ -145,7 +145,7 @@ def evaluate_eei():
 
     print("evaluate pd")
     policy = myenv.PdPolicy()
-    policy.Kp = 7.0
+    policy.Kp = 12.0
     policy.Kd = 0.5
     policy.dt = env.dt
     eei_pd, traj_pd, c_pfm_pd, c_eng_pd, reward_pd = trial(policy)
