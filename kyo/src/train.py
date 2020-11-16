@@ -49,7 +49,7 @@ class PddmPolicy:
         self.act_dim = 1
 
         self.gamma = 10.0
-        self.beta = 0.6
+        self.beta = 0.99
         self.sigma = 0.3
 
         self.reset()
@@ -179,6 +179,32 @@ def make_model(out_dim):
 
 
 def collect_data(env, n_rollout, rollout_length):
+    observations = []
+    actions = []
+    observations_next = []
+
+    for _ in tqdm.tqdm(range(n_rollout)):
+        obs = env.reset()
+
+        for _ in range(rollout_length):
+            action = env.action_space.sample()
+
+            obs_next, _, _, _ = env.step(action)
+
+            observations.append(obs)
+            actions.append(action)
+            observations_next.append(obs_next)
+
+            obs = obs_next
+
+    #observations      = np.array(observations, dtype=np.float64)
+    #actions           = np.array(actions, dtype=np.float64)
+    #observations_next = np.array(observations_next, dtype=np.float64)
+
+    return observations, actions, observations_next
+
+
+def collect_data_grid(env, n_rollout, rollout_length):
     observations = []
     actions = []
     observations_next = []

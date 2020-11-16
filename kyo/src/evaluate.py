@@ -87,7 +87,7 @@ def evaluate_eei():
     import matplotlib.pyplot as plt
 
     n_trials = 5
-    length = int(1000 / frame_skip)
+    length = int(400 / frame_skip)
     i_disturb = int(100 / frame_skip)
     disturb_interval = np.ceil(1 / frame_skip)
 
@@ -143,22 +143,22 @@ def evaluate_eei():
 
         return eei_list, traj, c_pfm_list, c_eng_list, reward_list
 
-    print("evaluate mpc")
-    n_samples = 2000
-    horizon = 20
-    policy = PddmPolicy(model, n_samples, horizon)
-    eei_mpc, traj_mpc, c_pfm_mpc, c_eng_mpc, reward_mpc = trial(policy)
-
     print("evaluate pd")
     policy = myenv.PdPolicy()
     policy.Kp = 7.0
-    policy.Kd = 2.0
     policy.Kd = 0.5
     policy.dt = env.dt
     eei_pd, traj_pd, c_pfm_pd, c_eng_pd, reward_pd = trial(policy)
+    eei_mpc, traj_mpc, c_pfm_mpc, c_eng_mpc, reward_mpc = trial(policy)
 
-    print(reward_mpc)
+    print("evaluate mpc")
+    n_samples = 2000
+    horizon = 7
+    policy = PddmPolicy(model, n_samples, horizon)
+    eei_mpc, traj_mpc, c_pfm_mpc, c_eng_mpc, reward_mpc = trial(policy)
+
     print(reward_pd)
+    print(reward_mpc)
 
     # Plot EEI, control deviation, and energy consumption
     import seaborn as sns
